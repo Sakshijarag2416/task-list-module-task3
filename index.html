@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager - Task 3</title>
+
+    <style>
+        body { font-family: Arial; background: #f2f2f2; display: flex; justify-content: center; }
+        #container { width: 450px; background: white; margin-top: 30px; padding: 25px; border-radius: 8px; box-shadow: 0 3px 10px rgba(0,0,0,0.2); }
+        h2 { text-align: center; margin-bottom: 15px; }
+        label { font-weight: bold; margin-top: 10px; display: block; }
+        input, textarea, select, button { width: 100%; padding: 10px; margin-top: 6px; border-radius: 6px; }
+        input, textarea, select { border: 1px solid gray; }
+        button { border: none; background: #007bff; color: white; cursor: pointer; margin-top: 15px; }
+        button:hover { background: #005fcc; }
+        .task { background: #eee; padding: 12px; border-radius: 6px; margin-top: 12px; }
+        .top { display: flex; justify-content: space-between; font-weight: bold; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .low { background: green; color: white; }
+        .medium { background: orange; color: white; }
+        .high { background: red; color: white; }
+        .completed { text-decoration: line-through; color: gray; }
+        .actions { margin-top: 8px; display: flex; gap: 8px; }
+        .del { background: red; padding: 7px; border-radius: 4px; color: white; border: none; cursor: pointer; }
+        .toggle { background: purple; padding: 7px; border-radius: 4px; color: white; border: none; cursor: pointer; }
+        .filters { margin-top: 15px; display: flex; gap: 5px; }
+        .filters input, .filters select { flex: 1; }
+        #successMsg { font-size: 16px; color: green; margin-top: 8px; text-align: center; }
+        #errorMsg { font-size: 14px; color: red; margin-top: 6px; }
+    </style>
+</head>
+
+<body>
+<div id="container">
+    <h2>Task Form</h2>
+
+    <label>Title *</label>
+    <input type="text" id="title">
+
+    <label>Description</label>
+    <textarea id="desc"></textarea>
+
+    <label>Priority *</label>
+    <select id="priority">
+        <option value="">Select Priority</option>
+        <option>Low</option>
+        <option>Medium</option>
+        <option>High</option>
+    </select>
+
+    <label>Due Date *</label>
+    <input type="date" id="dueDate">
+
+    <label>Status</label>
+    <select id="status">
+        <option>Pending</option>
+        <option>In Progress</option>
+        <option>Completed</option>
+    </select>
+
+    <button onclick="addTask()">Add Task</button>
+
+    <div id="errorMsg"></div>
+    <div id="successMsg"></div>
+
+    <div class="filters">
+        <input type="text" id="search" placeholder="Search title..." onkeyup="loadTasks()">
+        <select id="filterPriority" onchange="loadTasks()">
+            <option value="">Priority filter</option>
+            <option>Low</option>
+            <option>Medium</option>
+            <option>High</option>
+        </select>
+    </div>
+
+    <button onclick="sortTasks()">Sort by Due Date</button>
+
+    <h2 style="margin-top:20px;">Task List</h2>
+    <div id="taskList"></div>
+</div>
+
+
+<script>
+    function addTask() {
+        let title = titleInput.value.trim();
+        let priority = priorityInput.value;
+        let dueDate = dueDateInput.value;
+
+        if (!title) return showError("Title is required");
+        if (!priority) return showError("Priority is required");
+        if (!dueDate) return showError("Due date is required");
+
+        let task = {
+            title,
+            description: descInput.value.trim(),
+            priority,
+            dueDate,
+            status: statusInput.value
+        };
+
+        let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+        tasks.push(task);
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+
+        clearForm();
+        showSuccess("Task added successfully!");
+        loadTasks();
+    }
+
+    function loadTasks() {
+        let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+        let search = searchInput.value.toLowerCase();
+        let priorityFilter = filterPriority.value;
+
+        let html = "";
+        tasks.forEach((t, index) => {
+            if (search && !t.title.toLowerCase().includes(search)) return;
+            if (priorityFilter && t.priority !== priorityFilter) return;
+
+            let badgeClass = t.priority.toLowerCase();
+            let completedClass = t.status === "Completed" ? "completed" : "";
+
+            html += `
+            <div class="task ${completedClass}">
+                <div class="top">
+                    <span>${t.title}</span>
+                    <span class="badge ${badgeClass}">${t.priority}</span>
+                </div>
+                <div>${t.description ? (t.description.length > 100 ? t.description.slice(0,100) + "..." : t.description) : ""}</div>
+                <div><b>Due:</b> ${new Date(t.dueDate).toLocaleDateString()}</div>
+                <div><b>Status:</b> ${t.status}</div>
+
+                <div class="actions">
+                    <button class="toggle" onclick="toggleStatus(${index})">✔</button>
+                    <button class="del" onclick="deleteTask(${index})">X</button>
+                </div>
+            </div>`;
+        });
+
+        taskList.innerHTML = html || "<p>No tasks available</p>";
+    }
+
+    function deleteTask(index) {
+        let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+        tasks.splice(index, 1);
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+        loadTasks();
+    }
+
+    function toggleStatus(index) {
+        let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+        tasks[index].status = tasks[index].status === "Completed" ? "Pending" : "Completed";
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+        loadTasks();
+    }
+
+    function sortTasks() {
+        let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+        tasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+        loadTasks();
+    }
+
+    // helpers
+    function showError(msg) { errorMsg.innerHTML = msg; successMsg.innerHTML = ""; }
+    function showSuccess(msg) { successMsg.innerHTML = msg; errorMsg.innerHTML = ""; }
+    function clearForm() {
+        titleInput.value = ""; descInput.value = ""; priorityInput.value = "";
+        dueDateInput.value = ""; statusInput.value = "Pending";
+    }
+
+    // input references
+    const titleInput = document.getElementById("title");
+    const descInput = document.getElementById("desc");
+    const priorityInput = document.getElementById("priority");
+    const dueDateInput = document.getElementById("dueDate");
+    const statusInput = document.getElementById("status");
+    const searchInput = document.getElementById("search");
+    const filterPriority = document.getElementById("filterPriority");
+
+    loadTasks();
+</script>
+
+</body>
+</html>
